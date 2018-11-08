@@ -21,20 +21,16 @@ def showTarget(image, labels):
     cv2.imwrite('test_image.png',image)
 
 
-def prepareInputImage(image):
-    windowDim=500#1000
+def prepareInputImage(image, imgsize):
     step=900
-    #Check what happen if the image is not okay to be slided
-    print("Shape of the image")
-    print(image.shape)
-    
+        
     count=0
     #Slide vertically
     for sH in range(0, image.shape[0], step):
-        eH=sH+windowDim
+        eH=sH+imgsize
         #Slide horizontally
         for sW in range(0,image.shape[1], step):
-            eW=sW+windowDim
+            eW=sW+imgsize
 
             patch=image[sH:eH,sW:eW]
 
