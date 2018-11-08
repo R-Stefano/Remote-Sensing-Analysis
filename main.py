@@ -7,7 +7,7 @@ import tensorflow.contrib.slim as slim
 import numpy as np
 from modelBuilder import tiny_yolov3
 
-imgsize=1000
+imgsize=512
 
 parser=argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
 parser.add_argument("mode", help="train - will train the model\n")
@@ -28,7 +28,7 @@ if __name__=='__main__':
 
     print("Test image loaded")
     inputs=tf.placeholder(tf.float32, [None, imgsize, imgsize, 3], name="RGB_image")
-    #inputs=tf.expand_dims(inputs, axis=0)
+    
     #Select the model
     if (args.model=="tiny"):
         print("Creating tiny YOLOv3..")

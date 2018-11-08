@@ -35,7 +35,7 @@ def tiny_yolov3(input):
     #Detection 2
     #pred2=detection_layer(x)
 
-    return route_2#pred1, pred2
+    return x#pred1, pred2
 
 
 
