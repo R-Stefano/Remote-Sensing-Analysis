@@ -21,7 +21,7 @@ def creatingLabels(y_true, imgsize, scales, batch_size):
 
 
 def train(model, sess):
-    batch_size=100
+    batch_size=5
     myfile=tf.summary.FileWriter("tensorboard/", sess.graph)
 
     for _,_,inputList in os.walk("trainData"):
@@ -45,10 +45,14 @@ def train(model, sess):
                         xBatch=inputData[startB:endB]
                         yBatch=creatingLabels(labelData[startB:endB], 416,[13,26], batch_size)
 
-                        _,summ,deb1=sess.run([model.opt, model.trainData,model.output], feed_dict={model.input:xBatch/255., model.Y: yBatch})
+                        _,summ,deb1,deb2,deb3, deb4=sess.run([model.opt, model.trainData,    model.output, model.box_loss, model.x_boxes, model.y_coords], feed_dict={model.input:xBatch/255., model.Y: yBatch})
                         myfile.add_summary(summ, global_step=global_step)
-                        print("predictions for the first img, 3 preds", deb1[0,:3])
-                        print("labels first img, 3 preds", yBatch[0,:3])
+                        #print("predictions - min: {:.2f}, max: {:.2f}".format(np.min(deb1[:,:,2:4]),np.max(deb1[:,:,2:4])))
+                        #print("labels      - min: {:.2f}, max: {:.2f}".format(np.min(yBatch[:,:,2:4]),np.max(yBatch[:,:,2:4])))
+                        #print("pred boxes  - min: {:.2f}, max: {:.2f}".format(np.min(deb3), np.max(deb3)))
+                        #print("loss boxes  - min: {:.2f}, max: {:.2f}".format(np.min(deb2), np.max(deb2)))
+                        #print("loss box shape", deb2.shape)
+                        #print("\n\n")
                         global_step+=1
                 #use the last batch as testing
                 else:

@@ -67,21 +67,22 @@ class Yolov3_tiny:
         x_coords, x_boxes, x_conf, x_classes=tf.split(self.output, [2,2,1,self.num_classes], axis=-1)
 
         #Normalize x,y,w,h by the input image size
-        print(x_coords)
+        self.y_coords=y_coords/self.imgDim
+        self.y_boxes=y_coords/self.imgDim
+        self.x_coords=x_coords/self.imgDim
+        self.x_boxes=x_boxes/self.imgDim
         #Compute x,y loss
-        xy_loss=tf.reduce_sum(tf.square(y_coords-x_coords), axis=[1,2])*objects
-        print("Should be shape N, preds, 1", tf.shape(xy_loss))
+        self.xy_loss=tf.reduce_sum(tf.square(self.y_coords-self.x_coords)*objects, axis=[1,2])
         #Compute boxsize loss
-        box_loss=tf.reduce_sum(tf.square(tf.sqrt(y_boxes)-tf.sqrt(x_boxes)), axis=[1,2])*objects
-        print("Should be shape N, preds, 1", box_loss)
+        self.box_loss=tf.reduce_sum(tf.square(tf.sqrt(self.y_boxes)-tf.sqrt(self.x_boxes))*objects, axis=[1,2])
         #Compute confidence
-        conf_loss=tf.reduce_sum(tf.log(x_conf), axis=[1,2])*objects + tf.reduce_sum(tf.log(1-x_conf), axis=[1,2])*(1-objects)
+        self.conf_loss=tf.reduce_sum(tf.log(x_conf+1e-9)*objects, axis=[1,2]) + tf.reduce_sum(tf.log(1-x_conf+1e-9)*(1-objects), axis=[1,2])
 
         #compute class pred
-        class_loss=tf.reduce_sum(tf.log(x_classes+1e-9), axis=[1,2])*objects
+        self.class_loss=tf.reduce_sum(tf.log(x_classes+1e-9)*objects, axis=[1,2])
 
 
-        self.loss=tf.reduce_mean(xy_loss+box_loss+conf_loss+class_loss)
+        self.loss=tf.reduce_mean(self.xy_loss+self.box_loss+self.conf_loss+self.class_loss)
 
         optimizer=tf.train.AdamOptimizer(0.00001)
 
