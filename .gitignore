@@ -1,4 +1,2 @@
 darknet.py
-images/*
-traininImages/*
-YOLOV3_test/*
+model/*
