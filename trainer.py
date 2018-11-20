@@ -27,19 +27,38 @@ def train(model, sess):
     for _,_,inputList in os.walk("trainData"):
         data=sorted(inputList)
 
-    #load input images
-    for file in data:
-        mydict=pickle.load(open("trainData/"+file, "rb"))
-        inputData=mydict["X"]
-        labelData=mydict["Y"]
+    try:
+        global_step=0
+        #REMEMBER TO LOAD BACK THE GLOBAL STEP
+        while (True):
+            #load input images
+            for idx,file in enumerate(data):
+                mydict=pickle.load(open("trainData/"+file, "rb"))
+                inputData=mydict["X"]
+                labelData=mydict["Y"]
 
+                #Train set
+                if (idx!=len(data)-1):
+                    for startB in range(0,inputData.shape[0], batch_size):
+                        endB=startB+batch_size
 
-        for startB in range(0,inputData.shape[0], batch_size):
-            endB=startB+batch_size
+                        xBatch=inputData[startB:endB]
+                        yBatch=creatingLabels(labelData[startB:endB], 416,[13,26], batch_size)
 
-            xBatch=inputData[startB:endB]
-            yBatch=creatingLabels(labelData[startB:endB], 416,[13,26], batch_size)
+                        _,summ=sess.run([model.opt, model.trainData], feed_dict={model.input:inputData/255., model.Y: yBatch})
+                        file.add_summary(summ, global_step=global_step)
+                        global_step+=1
+                #use the last batch as testing
+                else:
+                    for startB in range(0,inputData.shape[0], batch_size):
+                        endB=startB+batch_size
 
-            _,_,err,deb=sess.run([model.opt1, model.opt2, model.loss,model.deb1], feed_dict={model.input:inputData/255., model.Y: yBatch})
-            print(err)
-            #file.add_summary(summ)
+                        xBatch=inputData[startB:endB]
+                        yBatch=creatingLabels(labelData[startB:endB], 416,[13,26], batch_size)
+
+                        _,summ=sess.run([agent.loss, agent.testData], feed_dict={model.input:inputData/255., model.Y: yBatch})
+                        file.add_summary(summ, global_step=global_step)
+                        global_step+=1
+    except (KeyboardInterrupt,SystemExit):
+        model.saver.save(sess,"myModel/yolo-tiny_graph.ckpt")
+

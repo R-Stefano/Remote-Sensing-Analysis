@@ -1,11 +1,5 @@
 import numpy as np
 
-#Compute the Intersection of Union of 2 boxes. 
-#What it does is to compute the area where the 2 boxes overlap
-#and then divide it by the sub of the areas minux the intersection area
-#iou=intArea(A1+A2-intArea)
-
-
 def iou(box1, box2):   
     b1_x0, b1_y0, b1_x1, b1_y1 = box1
     b2_x0, b2_y0, b2_x1, b2_y1 = box2
@@ -99,6 +93,10 @@ def filterPreds(predictions,imgsize, threshold, iou_threshold):
                 clas_boxes=clas_boxes[1:]
                 clas_conf=clas_conf[1:]
 
+                #Compute the Intersection of Union of 2 boxes. 
+                #What it does is to compute the area where the 2 boxes overlap
+                #and then divide it by the sub of the areas minux the intersection area
+                #iou=intArea(A1+A2-intArea)
                 ious=np.asarray([iou(box,b) for b in clas_boxes])
                 
                 #if the iou is under the threshold keep it, otherwise set to 0.

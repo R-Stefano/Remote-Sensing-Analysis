@@ -39,8 +39,6 @@ def predictionLayer(input, num_anchors, num_classes, anchors, imgDim):
     predMatrix=layer.conv2d(input, detKernelDim, kernel_size=[1,1],
                             activation_fn=None)
     
-    print("\n\nPred matrix", predMatrix)
-
     #Convert to shape [N, B*S*S, 5+C]
     shapedMatrix=tf.reshape(predMatrix, (-1, inputsize[1]*inputsize[2]*num_anchors, 5+num_classes))
 

@@ -1,6 +1,5 @@
 import argparse
 import tensorflow as tf
-import helper
 import cv2
 import os
 import tensorflow.contrib.slim as slim
@@ -8,17 +7,7 @@ import numpy as np
 from modelBuilder import Yolov3_tiny
 from predictor import filterPreds
 import trainer
-'''
-The truth bounding box have all the same shape 50x50. So, I don't need that the network learns 
-to detect different shapes. So in the loss function at least for the moment, I avoid to assign the loss
-to only the bounding box prediction with higher IOU and I'm going to use only the ones for where 
-the grid is.
 
-So, in order to create the label, I need to assign the labels to the grid. Suppose I have a grid of SxS.
-
-It's like with the bins, I have to squash the img dim into S so, simply x//factor and y//factor and then reshape
-to -1 so that I have SXS,1 where 
-'''
 #HYPERPARAMETERS
 imgsize=416
 step=400
@@ -46,11 +35,10 @@ parser.add_argument("mode", default="predict", help="Select if predict or train 
 if __name__=='__main__':
     args=parser.parse_args()
 
-    
     #Select the model
     if (args.model=="tiny"):
         print("Creating tiny YOLOv3..")
-        model=Yolov3_tiny(num_classes, imgsize)
+        model=Yolov3_tiny(num_classes, imgsize, anchors)
 
     with tf.Session() as sess:
         #Loading the weights

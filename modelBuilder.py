@@ -4,17 +4,16 @@ import numpy as np
 import os
 
 class Yolov3_tiny:
-    def __init__(self, num_classes, imgsize):
+    def __init__(self, num_classes, imgsize, anchors):
         self.input=tf.placeholder(tf.float32, [None, imgsize, imgsize, 3], name="RGB_image")
         self.num_classes=num_classes
-        self.anchors=[[(10., 14.),  (23., 27.),  (37., 58.)],
-            [(81., 82.),  (135., 169.),  (344., 319.)]]
+        self.anchors=anchors
         self.num_anchors=3    
         self.imgDim=imgsize
 
         self.buildModel()
         self.buildTraining()
-        #self.buildSummary()
+        self.buildSummary()
         self.saver=tf.train.Saver()
 
 
@@ -73,36 +72,39 @@ class Yolov3_tiny:
         #Normalize x,y,w,h by the input image size
         print(x_coords)
         #Compute x,y loss
-        xy_loss=tf.reduce_sum(tf.square(y_coords-x_coords), axis=-1)*objects
+        xy_loss=tf.reduce_sum(tf.square(y_coords-x_coords), axis=[1,2])*objects
         print("Should be shape N, preds, 1", tf.shape(xy_loss))
         #Compute boxsize loss
-        box_loss=tf.reduce_sum(tf.square(tf.sqrt(y_boxes)-tf.sqrt(x_boxes)), axis=-1)*objects
+        box_loss=tf.reduce_sum(tf.square(tf.sqrt(y_boxes)-tf.sqrt(x_boxes)), axis=[1,2])*objects
         print("Should be shape N, preds, 1", box_loss)
         #Compute confidence
-        conf_loss=tf.reduce_sum(tf.square(objects-x_conf), axis=-1)*objects
-        print("Should be shape N, preds, 1", conf_loss)
-
-
-        #compute no_confidence
-        noconf_loss=tf.reduce_sum(tf.square(objects-x_conf), axis=-1)*(1-objects)
+        conf_loss=tf.reduce_sum(tf.log(x_conf), axis=[1,2])*objects + tf.reduce_sum(tf.log(1-x_conf), axis=[1,2])*(1-objects)
 
         #compute class pred
-        class_loss=tf.reduce_sum(tf.log(x_classes+1e-9), axis=-1)*objects
+        class_loss=tf.reduce_sum(tf.log(x_classes+1e-9), axis=[1,2])*objects
 
 
-        self.loss=xy_loss+box_loss+conf_loss+noconf_loss+class_loss
+        self.loss=tf.reduce_mean(xy_loss+box_loss+conf_loss+class_loss)
 
         optimizer=tf.train.AdamOptimizer(0.00001)
 
         vars1=tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="prediction_1")
         vars2=tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="prediction_2")
-
         with tf.variable_scope("optimizer"):
-            self.opt1=optimizer.minimize(self.loss, var_list=vars1)
-            self.opt2=optimizer.minimize(self.loss, var_list=vars2)
+            self.grad_vars=optimizer.compute_gradients(self.loss,var_list=[vars1, vars2])
+
+            self.opt=optimizer.apply_gradients(self.grad_vars)
 
     def buildSummary(self):
-        self.globalStepData=tf.summary.merge(tf.summary.scalar("loss", self.loss))
+        prevk1=tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="Conv_8/weights")
+        prevk2=tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="Conv_10/weights")
+
+        self.trainData=tf.summary.merge([tf.summary.scalar("loss", self.loss),
+                                         tf.summary.histogram("grads_kernel1", self.grad_vars[0][0]),
+                                         tf.summary.histogram("grads_kernel2", self.grad_vars[2][0]),
+                                         tf.summary.histogram("prevk1", prevk1),
+                                         tf.summary.histogram("prevk2", prevk2)])
+        self.testData=tf.summary.merge([tf.summary.scalar("test_loss", self.loss)])
 
     
     def loadWeights(self, sess):
