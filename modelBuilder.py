@@ -63,9 +63,6 @@ class Yolov3_tiny:
         #Labels has shape N, preds, 5 where 5=[isobj, x,y,w,h]
         self.Y=tf.placeholder(tf.float32, name="labels")
 
-        print("pred vector shape",self.output)
-
-
         objects,y_coords,y_boxes=tf.split(self.Y, [1,2,2], axis=-1)
         x_coords, x_boxes, x_conf, x_classes=tf.split(self.output, [2,2,1,self.num_classes], axis=-1)
 

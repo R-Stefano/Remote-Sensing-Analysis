@@ -21,8 +21,8 @@ def creatingLabels(y_true, imgsize, scales, batch_size):
 
 
 def train(model, sess):
-    batch_size=50
-    file=tf.summary.FileWriter("tensorboard/", sess.graph)
+    batch_size=100
+    myfile=tf.summary.FileWriter("tensorboard/", sess.graph)
 
     for _,_,inputList in os.walk("trainData"):
         data=sorted(inputList)
@@ -45,8 +45,10 @@ def train(model, sess):
                         xBatch=inputData[startB:endB]
                         yBatch=creatingLabels(labelData[startB:endB], 416,[13,26], batch_size)
 
-                        _,summ=sess.run([model.opt, model.trainData], feed_dict={model.input:inputData/255., model.Y: yBatch})
-                        file.add_summary(summ, global_step=global_step)
+                        _,summ,deb1=sess.run([model.opt, model.trainData,model.output], feed_dict={model.input:xBatch/255., model.Y: yBatch})
+                        myfile.add_summary(summ, global_step=global_step)
+                        print("predictions for the first img, 3 preds", deb1[0,:3])
+                        print("labels first img, 3 preds", yBatch[0,:3])
                         global_step+=1
                 #use the last batch as testing
                 else:
@@ -56,8 +58,8 @@ def train(model, sess):
                         xBatch=inputData[startB:endB]
                         yBatch=creatingLabels(labelData[startB:endB], 416,[13,26], batch_size)
 
-                        _,summ=sess.run([agent.loss, agent.testData], feed_dict={model.input:inputData/255., model.Y: yBatch})
-                        file.add_summary(summ, global_step=global_step)
+                        _,summ=sess.run([model.loss, model.testData], feed_dict={model.input:xBatch/255., model.Y: yBatch})
+                        myfile.add_summary(summ, global_step=global_step)
                         global_step+=1
     except (KeyboardInterrupt,SystemExit):
         model.saver.save(sess,"myModel/yolo-tiny_graph.ckpt")
