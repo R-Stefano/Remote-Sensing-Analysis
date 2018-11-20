@@ -7,8 +7,7 @@ import tensorflow.contrib.slim as slim
 import numpy as np
 from modelBuilder import Yolov3_tiny
 from predictor import filterPreds
-from helper import creatingLabels
-
+import trainer
 '''
 The truth bounding box have all the same shape 50x50. So, I don't need that the network learns 
 to detect different shapes. So in the loss function at least for the moment, I avoid to assign the loss
@@ -32,18 +31,13 @@ anchors=[[(10., 13.), (16., 30.), (33., 23.)],
          [(30., 61.), (62., 45.), (59., 119.)],
          [(116., 90.), (156., 198.), (373., 326.)]]
 
-num_classes=80#1
+num_classes=1
 trainImages=""
 testImages=""
 classesName=""
 
-classesNames=[]
-with open("coco.names", "r") as f:
-    for line in f:
-        classesNames.append(line.replace("\n", ""))
 
 parser=argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
-#parser.add_argument("mode", help="train - will train the model\n")
 parser.add_argument("-m", "--model", help="Select which model use [tiny/yolo]", default="tiny")
 parser.add_argument("-g", "--generate", help="Preprocessing the input images [true/false]", default="false")
 parser.add_argument("mode", default="predict", help="Select if predict or train the model")
@@ -52,52 +46,19 @@ parser.add_argument("mode", default="predict", help="Select if predict or train 
 if __name__=='__main__':
     args=parser.parse_args()
 
-    '''
-    #Take the satelllite images and create the paches
-    if (args.generate=="true"):
-        inputData, labels=helper.prepareData(imgsize, step, num_classes)    
-    testImg="test1.png"
-    inputData=cv2.imread("test_predictions/"+testImg)
-    inputData=cv2.resize(inputData[:,:,::-1], (imgsize,imgsize))
-    '''
-
-    img=cv2.resize(cv2.imread("lab_2.png"), (imgsize,imgsize))
-    labels=np.max(img, axis=-1)
-
-    targets=np.argwhere(labels!=0)
-
-    #create box size labels
-    box_size=np.tile([50,50], (targets.shape[0],1))
-
-    #create isobject label
-    isObj=np.ones((targets.shape[0],1))
-
-    #isobj, x, y , w, h
-    #NOW USE EXAMPAND DIM FOR BATCH SIZE
-    y_true=np.expand_dims(np.concatenate((isObj,targets,box_size), axis=-1), axis=0)
-
-    readyLabels=creatingLabels(y_true,imgsize, [13,26], batch_size)
-
-
-    inputData=np.random.rand(imgsize,imgsize,3)*255
-
-    inputs=tf.placeholder(tf.float32, [None, imgsize, imgsize, 3], name="RGB_image")
     
     #Select the model
     if (args.model=="tiny"):
         print("Creating tiny YOLOv3..")
-        model=Yolov3_tiny(inputs, num_classes)
+        model=Yolov3_tiny(num_classes, imgsize)
 
     with tf.Session() as sess:
         #Loading the weights
         model.loadWeights(sess)
 
-
-        file=tf.summary.FileWriter("tensorboard/", sess.graph)
-
-        preds,deb=sess.run([model.loss, model.deb1], feed_dict={inputs:np.expand_dims(inputData/255., axis=0), model.Y: readyLabels})
+        if (args.mode=="train"):
+            trainer.train(model, sess)        
         
-        print(deb[:10])
         if(args.mode=="predict"):
             results=filterPreds(preds,imgsize, conf_threshold, iou_threshold)
 

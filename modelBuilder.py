@@ -4,17 +4,19 @@ import numpy as np
 import os
 
 class Yolov3_tiny:
-    def __init__(self, x, num_classes):
-        self.input=x
+    def __init__(self, num_classes, imgsize):
+        self.input=tf.placeholder(tf.float32, [None, imgsize, imgsize, 3], name="RGB_image")
         self.num_classes=num_classes
         self.anchors=[[(10., 14.),  (23., 27.),  (37., 58.)],
             [(81., 82.),  (135., 169.),  (344., 319.)]]
         self.num_anchors=3    
-        self.imgDim=x.get_shape().as_list()[1]
+        self.imgDim=imgsize
 
         self.buildModel()
         self.buildTraining()
+        #self.buildSummary()
         self.saver=tf.train.Saver()
+
 
     def buildModel(self):
         x=self.input
@@ -90,6 +92,17 @@ class Yolov3_tiny:
 
         self.loss=xy_loss+box_loss+conf_loss+noconf_loss+class_loss
 
+        optimizer=tf.train.AdamOptimizer(0.00001)
+
+        vars1=tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="prediction_1")
+        vars2=tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="prediction_2")
+
+        with tf.variable_scope("optimizer"):
+            self.opt1=optimizer.minimize(self.loss, var_list=vars1)
+            self.opt2=optimizer.minimize(self.loss, var_list=vars2)
+
+    def buildSummary(self):
+        self.globalStepData=tf.summary.merge(tf.summary.scalar("loss", self.loss))
 
     
     def loadWeights(self, sess):
@@ -98,6 +111,9 @@ class Yolov3_tiny:
             self.saver.restore(sess, "myModel/yolo-tiny_graph.ckpt")
             print("Loaded tensorflow format")
         else:
+            #Initialize adam variables
+            sess.run(tf.global_variables_initializer())
+            #initialize layer weights
             loadedWeights=self.convertWeightsFormat()
             sess.run(loadedWeights)
             self.saver.save(sess, "myModel/yolo-tiny_graph.ckpt")
@@ -124,6 +140,8 @@ class Yolov3_tiny:
         assign_ops=[]
         #Iterate through each layer assigning the variables
         for idx, scope in enumerate(scopes):
+            if scope=="optimizer/":
+                break
             var_list=tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=scope)
 
             filters_shape=var_list[0].get_shape().as_list()
