@@ -1,7 +1,2 @@
-darknet.py
-model/*
-images/*
-myModel/yolo-tiny_graph.ckpt.meta
-testDataset/*
-trainData/*
-data.tar
+dataset/*
+data/*.record-*

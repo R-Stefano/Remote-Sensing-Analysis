@@ -1,2 +1,0 @@
-model_checkpoint_path: "yolo-tiny_graph.ckpt"
-all_model_checkpoint_paths: "yolo-tiny_graph.ckpt"
