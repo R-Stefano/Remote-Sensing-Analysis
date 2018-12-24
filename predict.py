@@ -1,3 +1,5 @@
+from __future__ import division
+
 import os
 import cv2
 import tensorflow as tf
@@ -5,14 +7,17 @@ from object_detection.utils import visualization_utils as vis_util
 from object_detection.utils import label_map_util
 import numpy as np
 
-version="new"
 #Directory that containes the exported model
-myModel="model_"+version
+myModel="exportedModel"
 ckptPath=myModel+"/frozen_inference_graph.pb"
+input_image_name="top_potsdam_6_8_RGB"
 
-labels="data/labels.pbtxt"
+labels="labels.pbtxt"
 
 num_classes=1
+score_threshold=0.3
+patch_size=500
+stride=400
 
 #Load model into memory
 detection_graph=tf.Graph()
@@ -28,29 +33,19 @@ label_map=label_map_util.load_labelmap(labels)
 categories=label_map_util.convert_label_map_to_categories(label_map, max_num_classes=num_classes, use_display_name=False)
 category_index=label_map_util.create_category_index(categories)
 
+
 def iou(box, other_boxes):
     #Repeat the box for every example
     box=np.repeat(np.expand_dims(box, axis=0), other_boxes.shape[0] ,axis=0)
-    print("\n****\n")
-    print(box)
-    print(other_boxes[0])
+
     #Compute intersection area
     #Use None to keep the dimension and allows concatenation across values
     int_x0=np.max(np.concatenate((box[:,0,None], other_boxes[:,0,None]), axis=-1), axis=-1)
     int_y0=np.max(np.concatenate((box[:,1,None], other_boxes[:,1,None]), axis=-1), axis=-1)
     int_x1=np.min(np.concatenate((box[:,2,None], other_boxes[:,2,None]), axis=-1), axis=-1)
     int_y1=np.min(np.concatenate((box[:,3,None], other_boxes[:,3,None]), axis=-1), axis=-1)
-    
-    print(int_x0[0])
-    print(int_y0[0])
-    print(int_x1[0])
-    print(int_y1[0])
 
     int_area=(int_x1-int_x0)*(int_y1-int_y0)
-
-    print(int_area[0])
-    print("\n****\n")
-
 
     b1_area=(box[:,2]-box[:,0])*(box[:,3]-box[:,1])
     b2_area=(other_boxes[:,2]-other_boxes[:,0])*(other_boxes[:,3]-other_boxes[:,1])
@@ -115,7 +110,6 @@ def non_max_suppression_fast(boxes, overlapThresh):
 	# integer data type
 	return boxes[pick].astype("int")
 
-count=0
 #Detection
 with detection_graph.as_default():
     with tf.Session(graph=detection_graph) as sess:
@@ -126,26 +120,24 @@ with detection_graph.as_default():
         detection_classes=detection_graph.get_tensor_by_name('detection_classes:0')
         num_detections=detection_graph.get_tensor_by_name('num_detections:0')
 
-        count=0
         #open the image and process it
-        img=cv2.imread("top_potsdam_3_13_RGB.png")
+        img=cv2.imread(input_image_name+".png")
+
         imgHeight=img.shape[0]
         imgWidth=img.shape[1]
 
         boxList=[]
-        scoreList=[]
+
         originalSizeH=0
-        for startP in range(0, imgHeight, 400):
+        for startP in range(0, imgHeight, stride):
             endP=startP+500
             originalSizeW=0
-            for startPH in range(0, imgWidth, 400):
+            for startPH in range(0, imgWidth, stride):
                 endPH=startPH+500
 
-                patch=img[startP:endP,startPH: endPH]
-                patchShape=patch.shape
+                inputImg=img[startP:endP,startPH: endPH]
 
-
-                inputImg=cv2.resize(patch, (416,416))
+                patchSize=inputImg.shape
 
                 #Feed the image and obtain the results
                 (boxes, scores, classes, num)=sess.run([
@@ -169,85 +161,73 @@ with detection_graph.as_default():
                     category_index,
                     use_normalized_coordinates=True,
                     line_thickness=1)
-
-                '''
-
-                #Traslate the boxes in order to match the output image
-                boxes=np.squeeze(boxes)
-
-                #Convert to 500 dimension
-                #boxes=boxes*(500/416)
-                print("prev max:",np.max(boxes[:,0::2]), " prev min:",np.min(boxes[:,0::2]))
-                #translate Vertical
-                boxes[:,0::2]=(boxes[:,0::2]*patchShape[0])+originalSizeH
-                #Translate Horizontally
-                boxes[:,1::2]=(boxes[:,1::2]*patchShape[1])+originalSizeW
-                print("max:",np.max(boxes[:,0::2]), "min:",np.min(boxes[:,0::2]))
-
-                #Store the results
-                boxList.extend(boxes.tolist())
-                scoreList.extend(np.squeeze(scores).tolist())
-
-                '''
-                for b in boxes[0]:
-                    b=b*416
-                    #x=(b[2]-b[0])//2
-                    #y=(b[3]-b[1])//2
-                    #print(x,",",y)
-                    #cv2.circle(inputImg, (int(x),int(y)), 10, (0, 255, 0))
-                    cv2.rectangle(inputImg, (int(b[1]), int(b[0])), (int(b[3]), int(b[2])), (0,255,0))
                 
-                cv2.imwrite("res_"+str(count)+".png", inputImg)
-                count+=1
-                #img[startP: startP+ patchShape[0],startPH: startPH+patchShape[1]]=cv2.resize(inputImg, (patchShape[1],patchShape[0]))
+                cv2.imwrite(input_image_path+"_output_n"+str(count)+".png", inputImg)
+
                 '''
-                
+                #Retrieve the predictions where the score is higher than the threshold
+                scores=np.squeeze(scores)
+                score_mask=scores>score_threshold
+                score_idxs=np.nonzero(score_mask)
+
+                boxes=np.squeeze(boxes)[score_idxs]
+
+                #Boxes contains x0,y0,x1,y1 of the bounding boxes in range 0-1
+                #CONVERT BACK TO THE COORDINATES OF THE PATCH
+                boxes[:,0::2]=boxes[:,0::2]*patchSize[0]+originalSizeH
+                boxes[:,1::2]=boxes[:,1::2]*patchSize[1]+originalSizeW
+
+                boxList.extend(boxes)
+
                 #Translate by the dimension of the stride
-                originalSizeW+=400
+                originalSizeW+=stride
 
-            originalSizeH+=400
+            originalSizeH+=stride
 
         #Apply NMS
-        
-        #convert back to numpy to work with idxs
-        #Normalize boxes in order to iou max 1
         boxes=np.asarray(boxList)
-        res=non_max_suppression_fast(boxes, 0.55)
-        '''
-        #boxes[:,0::2]=boxes[:,0::2]/imgHeight
-        #boxes[:,1::2]=boxes[:,1::2]/imgWidth
-        scores=np.asarray(scoreList)
+        res=non_max_suppression_fast(boxes, 0.5)
 
-        #Sort the predictions based n confidence
-        conf_sorted_idx=scores.argsort()[::-1]
-        sorted_boxes=boxes[conf_sorted_idx]
+        #Retrieve the ground truth bounding boxes
+        labels=cv2.imread(input_image_name+"_Annotated_Cars.png")
+        labels=np.max(labels, axis=-1)
+        coords=np.argwhere(labels!=0)
+        #convert center to bounding boxes
+        coords=np.concatenate((coords-15, coords+15), axis=-1)
 
-        finalBoxes=[]
-        while(len(sorted_boxes)>0):
-            #Retrieve higher confidence box
-            box=sorted_boxes[0]
-            finalBoxes.append(box)
+        tp=0
+        fn=0
+        fp=0
 
-            #Retrieve all the following boxes
-            other_boxes=sorted_boxes[1:]
+        while (len(coords)>0):
+            coord=coords[0]
+            ious=iou(coord, res)
+            ious_mask=ious<0.5
 
-            print("aout iou components:")
-            print(box)
-            print(sorted_boxes[0])
-            #Compute IOU
-            iouRes=iou(box, other_boxes)
 
-            print("auto iou:", iouRes[0])
+            #Correctly predicted
+            if(len(ious_mask[ious_mask==False])!=0):
+                cv2.rectangle(img, (int(coord[1]), int(coord[0])), (int(coord[3]), int(coord[2])), (0,255,0))
+                #Remove the predictions
+                res=res[ious_mask]
+                tp+=1
+            #No predicted
+            else:
+                cv2.rectangle(img, (int(coord[1]), int(coord[0])), (int(coord[3]), int(coord[2])), (255,0,0))
+                fn+=1
 
-            #Get rid of the boxes with high IOU (means same box)
-            iou_mask=iouRes<0.6
-            print("number non zero:", len(np.nonzero(iou_mask)[0]))
-            print("number non zero:", np.nonzero(iou_mask))
+            coords=np.delete(coords, 0,0)
 
-            sorted_boxes=sorted_boxes[np.nonzero(iou_mask)]
-        '''
-        for b in res:
-            print(b)
-            cv2.rectangle(img, (int(b[1]), int(b[0])), (int(b[3]), int(b[2])), (0,255,0))
+        #Wrong predictions
+        for r in res:
+            cv2.rectangle(img, (int(r[1]), int(r[0])), (int(r[3]), int(r[2])), (0,0,255))
+            fp+=1
 
-        cv2.imwrite("resultNMS_"+version+".png", img)
+        cv2.imwrite(input_image_name+"_output.png", img)
+        precision=tp/(tp+fp)
+        recall=tp/(tp+fn)
+        F1=2*(precision*recall)/(precision+recall)
+        accuracy=(tp)/(tp+fn+fp)
+        
+        print("Precision: {:.2f}, Recall: {:.2f}, F1: {:.2f}, Accuracy: {:.2f}".format(precision,recall,F1, accuracy))
+    

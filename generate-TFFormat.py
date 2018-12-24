@@ -49,7 +49,7 @@ def create_tf_example(filename, image, labels, imgsize):
 
 patchsize=500
 stride=400
-box_size=20
+box_size=30
 
 img_count=0
 dataset_folder="dataset"
@@ -58,21 +58,23 @@ shard_test="data/test-dataset.record"
 test_count=0
 train_count=0
 
-train_examples_shard=512
-test_examples_shard=128
-num_shards=10
+examples_shard=128
+
+test_num_shards=10
+train_num_shards=test_num_shards*4 #keep 80% train data, 20% test data
 
 with contextlib2.ExitStack() as tf_record_close_stack:
     train_tfrecords = tf_record_creation_util.open_sharded_output_tfrecords(
-      tf_record_close_stack, shard_train, num_shards)
+      tf_record_close_stack, shard_train, train_num_shards)
     
     test_tfrecords = tf_record_creation_util.open_sharded_output_tfrecords(
-      tf_record_close_stack, shard_test, num_shards)
+      tf_record_close_stack, shard_test, test_num_shards)
     #every image has composed by 2 files: image, positive
     for _,_,fileList in os.walk(dataset_folder):
         sortedFiles=sorted(fileList)
         for i in range(0,len(sortedFiles), 2):
             image=cv2.imread(dataset_folder+"/"+sortedFiles[i])
+
             #convert to rgb
             rgbImg=image[:,:,::-1]
 
@@ -88,18 +90,19 @@ with contextlib2.ExitStack() as tf_record_close_stack:
                     #Collect the patch from the image
                     patch=rgbImg[sH:eH,sW:eW]
 
+                    
                     #If the patch is smaller than the patch size
                     if(patch.shape[0]<patchsize or patch.shape[1]<patchsize):
                         #Resize it
                         patch=cv2.resize(patch, (patchsize,patchsize))
-
+                    
                     #encode it
                     encodedImg=cv2.imencode('.png', patch)[1].tostring()
 
-        
                     #Collect the same patch from the annotation image
                     patchPosAnnotated=posAnn[sH:eH,sW:eW]
 
+                    
                     #If the patch is smaller than the patch size
                     if(patch.shape[0]<patchsize or patch.shape[1]<patchsize):
                         #resize it
@@ -109,32 +112,29 @@ with contextlib2.ExitStack() as tf_record_close_stack:
                     labels=np.max(patchPosAnnotated, axis=-1)
 
                     #shape num_targets,2
-                    targets=np.argwhere(labels!=0)
+                    targets=np.argwhere(labels!=0).astype(float)
 
                     #The format that I need is ymin, xmin, ymax, xmax normalized and the class starting from 0 and class name
-                    targets=np.concatenate((targets-box_size/2, targets+box_size/2), axis=-1)
+                    targets=np.concatenate((targets-box_size/2, targets+box_size/2), axis=-1)/patchsize
 
                     #create label class 0
-                    isObj=np.zeros((targets.shape[0],1)).astype(int)
+                    isObj=np.zeros((targets.shape[0],1))
                     
                     targets=np.concatenate((targets, isObj), axis=-1)
 
-                    #normalize boxes
-                    targets[:,:4]=targets[:,:4]/patchsize
-
-                    if (np.random.rand()<0.2 and test_count<num_shards*test_examples_shard):
+                    if (np.random.rand()<0.2 and test_count<test_num_shards*examples_shard):
                         imageName="img_"+str(test_count)+".png"
                         tf_example = create_tf_example(imageName, encodedImg, targets, patchsize)
 
-                        output_shard_index = test_count //test_examples_shard
+                        output_shard_index = test_count //examples_shard
                         test_tfrecords[output_shard_index].write(tf_example.SerializeToString())
                         
                         test_count+=1
-                    elif(train_count<num_shards*train_examples_shard):
+                    elif(train_count<train_num_shards*examples_shard):
                         imageName="img_"+str(train_count)+".png"
                         tf_example = create_tf_example(imageName, encodedImg, targets, patchsize)
 
-                        output_shard_index = train_count //train_examples_shard
+                        output_shard_index = train_count //examples_shard
                         train_tfrecords[output_shard_index].write(tf_example.SerializeToString())
 
                         train_count+=1
