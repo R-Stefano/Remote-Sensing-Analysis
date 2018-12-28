@@ -40,7 +40,7 @@ python generate-TFFormat.py
 ```
 As the filename says, this command will create the **shard** files used for train and test and put into the **data** folder.
 
->> **Note:** The **data** folder must be inserted into *models/research/*
+> **Note:** The **data** folder must be inserted into *models/research/*
 
 The next step is to download the [model's weights](https://github.com/tensorflow/models/blob/master/research/object_detection/g3doc/detection_model_zoo.md#coco-trained-models) and its [configuration file](https://github.com/tensorflow/models/tree/master/research/object_detection/samples/configs).
 
