@@ -1,6 +1,4 @@
 dataset/*
 data/*.record-*
-exportedModel/*
-labels.pbtxt
 top_potsdam_6_8_RGB.png
 top_potsdam_6_8_RGB_Annotated_Cars.png

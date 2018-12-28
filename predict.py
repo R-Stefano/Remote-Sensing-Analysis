@@ -8,11 +8,11 @@ from object_detection.utils import label_map_util
 import numpy as np
 
 #Directory that containes the exported model
-myModel="exportedModel"
-ckptPath=myModel+"/frozen_inference_graph.pb"
+ckptPath="model/model.pb"
+
 input_image_name="top_potsdam_6_8_RGB"
 
-labels="labels.pbtxt"
+labels="model/labels.pbtxt"
 
 num_classes=1
 score_threshold=0.3
