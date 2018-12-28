@@ -223,7 +223,7 @@ with detection_graph.as_default():
             cv2.rectangle(img, (int(r[1]), int(r[0])), (int(r[3]), int(r[2])), (0,0,255))
             fp+=1
 
-        cv2.imwrite(input_image_name+"_output.png", img)
+        cv2.imwrite("result.png", img)
         precision=tp/(tp+fp)
         recall=tp/(tp+fn)
         F1=2*(precision*recall)/(precision+recall)
