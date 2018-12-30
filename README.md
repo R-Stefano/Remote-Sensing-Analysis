@@ -66,6 +66,5 @@ python object_detection/model_main.py \
 ## Prediction
 On the other hand, if you just want to analyze an image you can run
 ```
-python predict.py
+python predict.py <imagename>
 ```
-add flag for image to predict
