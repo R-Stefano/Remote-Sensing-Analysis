@@ -12,7 +12,7 @@ So I thought that could be interesting to develop a system able to determine the
 
 **This first phase of the project focuses on developing an algorithm able to localize cars from satellite images.**
 
-The article about this project can be found [Here](http://demiledge.com/artificialIntelligence/carDetection.php)
+The article about this project can be found [Here](http://www.stefanorosa.me/topicboard/artificialIntelligence/carDetection)
 
 ## Dependencies
 * Tensorflow
